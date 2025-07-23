@@ -63,3 +63,8 @@ Make sure you have Python 3 and Pygame installed. Then run:
 ```bash
 pip install pygame
 python Gravitroids.py
+```
+
+## Pending additions
+- **sound**: Add sound into game for shooting, exploding planets, failing, getting hit, etc
+- **exe compiling**: compile the game into an EXE so it can be run independently of Python. Have to find a work around for the virus flag
