@@ -28,62 +28,6 @@ pygame.mixer.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Gravitroids")
 clock = pygame.time.Clock()
-
-shoot_sound = pygame.mixer.Sound("sounds/shoot.ogg")
-shoot_sound.set_volume(0.5)
-shoot_sound = pygame.mixer.Sound("sounds/shoot.ogg")
-shoot_sound.set_volume(0.5)
-
-explosion_sound = pygame.mixer.Sound("sounds/break.ogg")
-explosion_sound.set_volume(0.2)
-
-thrusting_sound = pygame.mixer.Sound("sounds/thrusting.ogg")
-thrusting_sound.set_volume(0.1)
-thrusting = False
-
-delta_sound = pygame.mixer.Sound("sounds/deltarune.ogg")
-delta_sound.set_volume(0.25)
-
-music_tracks = {
-    "low": pygame.mixer.Sound("music_low.ogg"),
-    "mid": pygame.mixer.Sound("music_mid.ogg"),
-    "high": pygame.mixer.Sound("music_high.ogg")
-}
-
-# Two channels for alternating playback
-channel_a = pygame.mixer.Channel(0)
-channel_b = pygame.mixer.Channel(1)
-
-# Keep track of which channel is active
-current_channel = channel_a
-current_music_level = None
-
-def update_music(points, fade_time=1000):
-    global current_music_level, current_channel
-
-    # Decide which music level is needed
-    if points < 50:
-        new_level = "low"
-    elif points < 100:
-        new_level = "mid"
-    else:
-        new_level = "high"
-        
-    if new_level != current_music_level:
-        next_track = music_tracks[new_level]
-
-        # Determine which channel to play next
-        next_channel = channel_b if current_channel == channel_a else channel_a
-
-        # Start the new track with fade-in on the next channel
-        next_channel.play(next_track, loops=-1, fade_ms=fade_time)
-
-        # Fade out the current track on the current channel
-        current_channel.fadeout(fade_time)
-
-        # Update current channel and level
-        current_channel = next_channel
-        current_music_level = new_level
         
 def predict_trajectory(player, planets, steps=60, dt=0.5):
     pos = pygame.Vector2(player.x, player.y)
@@ -136,6 +80,106 @@ def create_glow_texture(radius, color, mass):
                 glow_texture.set_at((x + glow_radius, y + glow_radius), glow_color)
 
     return glow_texture
+
+class Slider:
+    def __init__(self, x, y, width, height, min_val=0.0, max_val=1.0, initial=1.0):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.knob_rect = pygame.Rect(x + initial * width, y, 10, height)
+        self.min_val = min_val
+        self.max_val = max_val
+        self.value = initial
+        self.dragging = False
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.knob_rect.collidepoint(event.pos):
+                self.dragging = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.dragging = False
+        elif event.type == pygame.MOUSEMOTION and self.dragging:
+            rel_x = max(self.rect.left, min(event.pos[0], self.rect.right))
+            self.knob_rect.x = rel_x - self.knob_rect.width // 2
+            self.value = (self.knob_rect.centerx - self.rect.left) / self.rect.width
+
+    def draw(self, surface):
+        # Track
+        pygame.draw.rect(surface, (100, 100, 100), self.rect)
+        # Knob
+        pygame.draw.rect(surface, (255, 255, 255), self.knob_rect)
+
+    def get_value(self):
+        return self.min_val + self.value * (self.max_val - self.min_val)
+    
+screen_width, screen_height = screen.get_size()
+slider_width = 300
+slider_height = 20
+slider_spacing = 60
+center_y = screen_height // 2
+music_slider_y = center_y - slider_spacing // 2
+sfx_slider_y = center_y + slider_spacing // 2
+slider_x = (screen_width - slider_width) // 2
+music_slider = Slider(slider_x, music_slider_y, slider_width, slider_height, initial=0.5)
+sfx_slider = Slider(slider_x, sfx_slider_y, slider_width, slider_height, initial=0.5)
+
+
+# Set initial volumes
+pygame.mixer.music.set_volume(music_slider.get_value())
+
+shoot_sound = pygame.mixer.Sound("sounds/shoot.ogg")
+shoot_sound.set_volume(sfx_slider.get_value())
+
+explosion_sound = pygame.mixer.Sound("sounds/break.ogg")
+explosion_sound.set_volume(0.4*sfx_slider.get_value())
+
+thrusting_sound = pygame.mixer.Sound("sounds/thrusting.ogg")
+thrusting_sound.set_volume(0.2*sfx_slider.get_value())
+thrusting = False
+
+delta_sound = pygame.mixer.Sound("sounds/deltarune.ogg")
+delta_sound.set_volume(0.5*sfx_slider.get_value())
+
+music_tracks = {
+    "low": pygame.mixer.Sound("music/low.ogg"),
+    "mid": pygame.mixer.Sound("music/mid.ogg"),
+    "high": pygame.mixer.Sound("music/high.ogg")
+}
+
+# Two channels for alternating playback
+channel_a = pygame.mixer.Channel(0)
+channel_b = pygame.mixer.Channel(1)
+
+# Keep track of which channel is active
+current_channel = channel_a
+current_music_level = None
+
+def update_music(points, fade_time=1000):
+    global current_music_level, current_channel
+
+    if points < 50:
+        new_level = "low"
+    elif points < 100:
+        new_level = "mid"
+    else:
+        new_level = "high"
+
+    if new_level != current_music_level:
+        next_track = music_tracks[new_level]
+        next_channel = channel_b if current_channel == channel_a else channel_a
+
+        # Set volume based on slider before playing
+        next_channel.set_volume(music_slider.get_value())
+
+        # Start the new track with fade-in
+        next_channel.play(next_track, loops=-1, fade_ms=fade_time)
+
+        # Fade out the current channel
+        current_channel.fadeout(fade_time)
+
+        # Swap channels
+        current_channel = next_channel
+        current_music_level = new_level
+
+
 
 class Bullet:
     def __init__(self, x, y, angle):
@@ -765,6 +809,38 @@ while running:
         stats_window.blit(momentum_text, (10, 100))
 
         screen.blit(stats_window, (WIDTH - box_width, 0))
+        
+    if paused:
+        # Semi-transparent overlay
+        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        screen.blit(overlay, (0, 0))
+
+        # Draw title
+        font = pygame.font.SysFont(None, 64)
+        title_text = font.render("PAUSED: Press P", True, (255, 255, 255))
+        title_rect = title_text.get_rect(center=(WIDTH // 2, music_slider.rect.top - 60))
+        screen.blit(title_text, title_rect)
+
+        # Handle slider events
+        music_slider.handle_event(event)
+        sfx_slider.handle_event(event)
+
+        # Update music volume
+        current_channel.set_volume(music_slider.get_value())
+
+        # Draw sliders
+        music_slider.draw(screen)
+        sfx_slider.draw(screen)
+
+        # Draw labels
+        label_font = pygame.font.SysFont(None, 28)
+        music_label = label_font.render("Music Volume", True, (255, 255, 255))
+        sfx_label = label_font.render("SFX Volume", True, (255, 255, 255))
+
+        screen.blit(music_label, (music_slider.rect.x, music_slider.rect.y - 24))
+        screen.blit(sfx_label, (sfx_slider.rect.x, sfx_slider.rect.y - 24))
+
 
     pygame.display.flip()
     clock.tick(TICK_RATE)
