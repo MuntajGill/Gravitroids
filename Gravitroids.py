@@ -41,6 +41,9 @@ thrusting_sound = pygame.mixer.Sound("sounds/thrusting.ogg")
 thrusting_sound.set_volume(0.1)
 thrusting = False
 
+delta_sound = pygame.mixer.Sound("sounds/deltarune.ogg")
+delta_sound.set_volume(0.25)
+
 music_levels = {
     "low": "music/music_low.mp3",
     "mid": "music/music_mid.mp3",
@@ -380,6 +383,7 @@ def show_death_screen():
     # Display "You Died"
     if thrusting:
         thrusting_sound.stop()
+    delta_sound.play()
     font = pygame.font.Font(None, 74)
     died_text = font.render("You Died", True, (255, 0, 0))
     if player.points > 0:
