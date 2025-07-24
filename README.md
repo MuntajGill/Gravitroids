@@ -68,3 +68,7 @@ python Gravitroids.py
 ## Pending additions
 - **readability**: split project into several files to enhance readability. also further classify functions
 - **exe compiling**: compile the game into an EXE so it can be run independently of Python. Have to find a work around for the virus flag
+
+## Notes
+- gravitroids will save your information to a json file. I will not be collecting this information (partly as I don't know how to, and partly because I don't want to invade your privacy)
+- if you wish to leave feedback, you can add me on discord (theroyalgamer65) or email me directly (gillmuntaj03@gmail.com)
