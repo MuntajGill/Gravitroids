@@ -31,6 +31,41 @@ clock = pygame.time.Clock()
 
 shoot_sound = pygame.mixer.Sound("sounds/shoot.ogg")
 shoot_sound.set_volume(0.5)
+shoot_sound = pygame.mixer.Sound("sounds/shoot.ogg")
+shoot_sound.set_volume(0.5)
+
+explosion_sound = pygame.mixer.Sound("sounds/break.ogg")
+explosion_sound.set_volume(0.2)
+
+thrusting_sound = pygame.mixer.Sound("sounds/thrusting.ogg")
+thrusting_sound.set_volume(0.1)
+thrusting = False
+
+music_levels = {
+    "low": "music/music_low.mp3",
+    "mid": "music/music_mid.mp3",
+    "high": "music/music_high.mp3"
+}
+current_music_level = None
+
+def update_music(points, fade_time=1000):  # fade_time in milliseconds
+    global current_music_level
+
+    # Determine music level based on points
+    if points < 50:
+        new_level = "low"
+    elif points < 100:
+        new_level = "mid"
+    else:
+        new_level = "high"
+
+    # Only change music if the level has changed
+    if new_level != current_music_level:
+        pygame.mixer.music.fadeout(fade_time)  # Smoothly fade out current music
+        pygame.mixer.music.load(music_levels[new_level])
+        pygame.mixer.music.play(-1, fade_ms=fade_time)  # Smoothly fade in new music
+        current_music_level = new_level
+
 
 
 def predict_trajectory(player, planets, steps=60, dt=0.5):
@@ -343,6 +378,8 @@ def show_death_screen():
     screen.fill(BLACK)
 
     # Display "You Died"
+    if thrusting:
+        thrusting_sound.stop()
     font = pygame.font.Font(None, 74)
     died_text = font.render("You Died", True, (255, 0, 0))
     if player.points > 0:
@@ -664,6 +701,14 @@ while running:
 
             if i not in to_remove:
                 planet.update_position(TIME_SCALE)  # Update position with time scale
+                if keys[pygame.K_LEFT] or keys[pygame.K_UP] or keys[pygame.K_RIGHT]: 
+                    if not thrusting:
+                        thrusting_sound.play(loops=-1)
+                        thrusting = True
+                else:
+                    if thrusting:
+                        thrusting_sound.stop()
+                        thrusting = False
                 if planet.is_offscreen():
                     to_remove.add(i)
 
