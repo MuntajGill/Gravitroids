@@ -44,33 +44,47 @@ thrusting = False
 delta_sound = pygame.mixer.Sound("sounds/deltarune.ogg")
 delta_sound.set_volume(0.25)
 
-music_levels = {
-    "low": "music/music_low.mp3",
-    "mid": "music/music_mid.mp3",
-    "high": "music/music_high.mp3"
+music_tracks = {
+    "low": pygame.mixer.Sound("music_low.ogg"),
+    "mid": pygame.mixer.Sound("music_mid.ogg"),
+    "high": pygame.mixer.Sound("music_high.ogg")
 }
+
+# Two channels for alternating playback
+channel_a = pygame.mixer.Channel(0)
+channel_b = pygame.mixer.Channel(1)
+
+# Keep track of which channel is active
+current_channel = channel_a
 current_music_level = None
 
-def update_music(points, fade_time=1000):  # fade_time in milliseconds
-    global current_music_level
+def update_music(points, fade_time=1000):
+    global current_music_level, current_channel
 
-    # Determine music level based on points
+    # Decide which music level is needed
     if points < 50:
         new_level = "low"
     elif points < 100:
         new_level = "mid"
     else:
         new_level = "high"
-
-    # Only change music if the level has changed
+        
     if new_level != current_music_level:
-        pygame.mixer.music.fadeout(fade_time)  # Smoothly fade out current music
-        pygame.mixer.music.load(music_levels[new_level])
-        pygame.mixer.music.play(-1, fade_ms=fade_time)  # Smoothly fade in new music
+        next_track = music_tracks[new_level]
+
+        # Determine which channel to play next
+        next_channel = channel_b if current_channel == channel_a else channel_a
+
+        # Start the new track with fade-in on the next channel
+        next_channel.play(next_track, loops=-1, fade_ms=fade_time)
+
+        # Fade out the current track on the current channel
+        current_channel.fadeout(fade_time)
+
+        # Update current channel and level
+        current_channel = next_channel
         current_music_level = new_level
-
-
-
+        
 def predict_trajectory(player, planets, steps=60, dt=0.5):
     pos = pygame.Vector2(player.x, player.y)
     vel = pygame.Vector2(player.vx, player.vy)
@@ -521,10 +535,11 @@ def draw_gradient_background():
         )
         pygame.draw.line(screen, color, (0, y), (WIDTH, y))
         
-def draw_dynamic_gradient():
+def gradient_and_music():
     global GRADIENT_CACHED
 
     player_points = player.points
+    update_music(player_points)
 
     GRADIENT_CACHED = pygame.Surface((WIDTH, HEIGHT))
     thresholds = [0, 50, 100, 150]  # Black at 0, Blue at 50, Green at 100, Red at 150+
@@ -594,8 +609,7 @@ while running:
     if player.points != POINTS_PREV:
         POINTS_PREV = player.points
         player.mass = (player.points)/5**2
-        draw_dynamic_gradient()
-    #screen.fill(BLACK)
+        gradient_and_music()
     screen.blit(GRADIENT_CACHED, (0, 0))
 
     if not paused:
