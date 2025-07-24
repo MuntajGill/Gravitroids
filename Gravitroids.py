@@ -2,6 +2,76 @@ import pygame
 import random
 import math
 import sys
+import json
+import os
+SETTINGS_FILE = "settings.json"
+default_settings = {
+    "player_name": None,
+    "music_volume": 0.5,
+    "sfx_volume": 0.5,
+    "max_score": 0
+}
+settings = None
+def prompt_player_name(screen):
+    font = pygame.font.SysFont(None, 36)
+    input_box = pygame.Rect(200, 250, 400, 40)
+    color_inactive = pygame.Color('lightskyblue3')
+    color_active = pygame.Color('dodgerblue2')
+    color = color_inactive
+    active = True
+    name = ""
+    done = False
+
+    while not done:
+        screen.fill((30, 30, 30))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+            elif event.type == pygame.KEYDOWN:
+                if active:
+                    if event.key == pygame.K_RETURN and name.strip():
+                        done = True
+                    elif event.key == pygame.K_BACKSPACE:
+                        name = name[:-1]
+                    else:
+                        if len(name) < 20:
+                            name += event.unicode
+
+        # Draw prompt
+        prompt = font.render("Enter your name and press Enter:", True, (255, 255, 255))
+        screen.blit(prompt, (200, 200))
+
+        # Draw input box
+        txt_surface = font.render(name, True, color)
+        pygame.draw.rect(screen, color, input_box, 2)
+        screen.blit(txt_surface, (input_box.x + 5, input_box.y + 5))
+
+        pygame.display.flip()
+    return name
+        
+def save_settings(settings):
+    # Compare and keep the higher max_score
+    if player.points > settings.get("max_score"):
+        settings["max_score"] = player.points
+    settings["music_volume"] = music_slider.get_value()
+    settings["sfx_volume"] = sfx_slider.get_value()
+
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(settings, f, indent=4)
+
+def load_settings(screen):
+    global settings
+    if not os.path.exists(SETTINGS_FILE):
+        settings = default_settings.copy()
+        settings["player_name"] = prompt_player_name(screen)
+        save_settings(settings)
+        return settings
+    else:
+        with open(SETTINGS_FILE, "r") as f:
+            return json.load(f)
+
 
 WIDTH, HEIGHT = 1536, 864
 GRAVITY_CONSTANT = 10
@@ -109,6 +179,14 @@ class Slider:
 
     def get_value(self):
         return self.min_val + self.value * (self.max_val - self.min_val)
+    
+    def set_value(self, new_value):
+        # Clamp new_value between min_val and max_val
+        clamped = max(self.min_val, min(new_value, self.max_val))
+        self.value = (clamped - self.min_val) / (self.max_val - self.min_val)
+        # Update knob position accordingly
+        self.knob_rect.x = self.rect.left + int(self.value * self.rect.width) - self.knob_rect.width // 2
+
     
 screen_width, screen_height = screen.get_size()
 slider_width = 300
@@ -436,6 +514,8 @@ def check_collision(entity, target):
     return distance < entity.radius + target.radius
 
 def show_death_screen():
+
+    save_settings(settings)
     screen.fill(BLACK)
 
     # Display "You Died"
@@ -508,7 +588,12 @@ def show_title_screen():
             orbital_angle = math.radians(angle_beta + (360 / num_orbitals) * i)
             x = center_x + int(radius * 2 * math.cos(orbital_angle))
             y = center_y + int(radius * 2 * math.sin(orbital_angle))
-            pygame.draw.circle(screen, (0, 255, 255), (x, y), 10)  # Smaller orbiting circles        
+            pygame.draw.circle(screen, (0, 255, 255), (x, y), 10)  # Smaller orbiting circles
+    global settings 
+    settings = load_settings(screen)       
+    music_slider.set_value(settings["music_volume"])
+    sfx_slider.set_value(settings["sfx_volume"])
+    
         
 
     while True:
@@ -844,5 +929,5 @@ while running:
 
     pygame.display.flip()
     clock.tick(TICK_RATE)
-
+# Update settings dictionary
 pygame.quit()
